@@ -1,33 +1,72 @@
-class HelloWorldCard extends HTMLElement {
+import { LitElement, html, css } from "https://unpkg.com/lit@2.6.1?module";
+import { unsafeHTML } from "https://unpkg.com/lit@2.6.1/directives/unsafe-html.js?module";
 
-    config;
-    content;
+class MySimpleCard extends LitElement {
+  static properties = {
+    hass: {},      // Объект Home Assistant
+    config: {},    // Конфигурация карточки
+  };
 
-    // required
-    setConfig(config) {
-        this.config = config;
+  static styles = css`
+    .card {
+      background: var(--card-background-color, #ffffff);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      color: var(--primary-text-color, #000000);
+      font-family: Arial, sans-serif;
     }
-
-    set hass(hass) {
-        const entityId = this.config.entity;
-        const state = hass.states[entityId];
-        const stateStr = state ? state.state : 'unavailable';
-
-        // done once
-        if (!this.content) {
-            // user makes sense here as every login gets it's own instance
-            this.innerHTML = `
-                <ha-card header="Hello ${hass.user.name}!">
-                    <div class="card-content"></div>
-                </ha-card>
-            `;
-            this.content = this.querySelector('div');
-        }
-        // done repeatedly
-        this.content.innerHTML = `
-            <p>The ${entityId} is ${stateStr}.</p>
-        `;
+    .header {
+      font-size: 1.2em;
+      margin-bottom: 12px;
+      color: var(--accent-color);
     }
+    .value {
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+    button {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+  `;
+
+  // Вызывается при обновлении конфигурации
+  setConfig(config) {
+    if (!config.entity) throw new Error("Не указана entity!");
+    this.config = config;
+  }
+
+  // Обработчик клика по кнопке
+  handleClick() {
+    this.hass.callService("light", "toggle", {
+      entity_id: this.config.entity,
+    });
+  }
+
+  // Рендер HTML
+  render() {
+    if (!this.hass || !this.config) return html`<div>Loading...</div>`;
+
+    const state = this.hass.states[this.config.entity];
+    if (!state) return html`<div>Entity not found!</div>`;
+
+    return html`
+      <div class="card">
+        <div class="header">${this.config.title || "Custom Card"}</div>
+        <div class="value">${state.state} ${this.config.unit || ""}</div>
+        ${this.config.show_button ? html`
+          <button @click=${this.handleClick}>Toggle</button>
+        ` : ""}
+      </div>
+    `;
+  }
 }
 
-customElements.define('hello-world-card', HelloWorldCard);
+// Регистрируем карточку в HA
+customElements.define("my-simple-card", MySimpleCard);
